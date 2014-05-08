@@ -85,10 +85,11 @@
 
 	var Datepicker = function(element, options){
 		this.dates = new DateArray();
-		this.viewDate = UTCToday();
 		this.focusDate = null;
 
 		this._process_options(options);
+        this.initialDate = UTCDate(this.o.initialDate.getFullYear(), this.o.initialDate.getMonth(), this.o.initialDate.getDate());
+        this.viewDate = this.initialDate;
 
 		this.element = $(element);
 		this.isInline = false;
@@ -148,6 +149,9 @@
 			this._o = $.extend({}, this._o, opts);
 			// Processed options
 			var o = this.o = $.extend({}, this._o);
+            // Initial date value to show as active in the calendar view.
+            // Defaults to today.
+            o.initialDate = o.initialDate || new Date();
 
 			// Check if "de-DE" style date is available, if not language should
 			// fallback to 2 letter code eg "de"
@@ -410,6 +414,11 @@
 		show: function(){
 			if (!this.isInline)
 				this.picker.appendTo('body');
+            // If it is showing and the field is empty, go to initial date.
+            if (!this.picker.is(':visible') && !this.element.val() && this.viewDate.valueOf() != this.initialDate.valueOf()) {
+                this.viewDate = this.initialDate;
+                this.fill();
+            }
 			this.picker.show();
 			this.place();
 			this._attachSecondaryEvents();
@@ -478,6 +487,10 @@
 
 		getUTCDate: function(){
 			return new Date(this.dates.get(-1));
+		},
+
+        setInitialDate: function (initialDate) {
+            this.initialDate = UTCDate(initialDate.getFullYear(), initialDate.getMonth(), initialDate.getDate());
 		},
 
 		setDates: function(){
@@ -657,8 +670,10 @@
 				if (String(oldDates) !== String(this.dates))
 					this._trigger('changeDate');
 			}
-			if (!this.dates.length && oldDates.length)
+            if (!this.dates.length && oldDates.length) {
+                this.viewDate = this.initialDate;
 				this._trigger('clearDate');
+            }
 
 			this.fill();
 		},
@@ -700,8 +715,7 @@
 		getClassNames: function(date){
 			var cls = [],
 				year = this.viewDate.getUTCFullYear(),
-				month = this.viewDate.getUTCMonth(),
-				today = new Date();
+                month = this.viewDate.getUTCMonth();
 			if (date.getUTCFullYear() < year || (date.getUTCFullYear() === year && date.getUTCMonth() < month)){
 				cls.push('old');
 			}
@@ -710,11 +724,7 @@
 			}
 			if (this.focusDate && date.valueOf() === this.focusDate.valueOf())
 				cls.push('focused');
-			// Compare internal UTC date with local today, not UTC today
-			if (this.o.todayHighlight &&
-				date.getUTCFullYear() === today.getFullYear() &&
-				date.getUTCMonth() === today.getMonth() &&
-				date.getUTCDate() === today.getDate()){
+            if (this.o.todayHighlight && date.valueOf() == this.initialDate.valueOf()) {
 				cls.push('today');
 			}
 			if (this.dates.contains(date) !== -1)
